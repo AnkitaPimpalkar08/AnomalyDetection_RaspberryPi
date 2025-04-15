@@ -23,8 +23,6 @@ Timestamp,Temperature,Humidity,Motion,Prediction
 2025-03-24 05:41:18,24.3,32,1,1
 2025-03-24 05:41:20,24.3,32,1,1
 2025-03-24 05:41:22,24.3,32,1,1
-<<<<<<< HEAD
-=======
 2025-04-15 16:16:23,26.4,49,1,Anomaly
 2025-04-15 16:16:50,26.3,49,1,Anomaly
 2025-04-15 16:17:15,26.3,49,1,Anomaly
@@ -36,4 +34,4 @@ Timestamp,Temperature,Humidity,Motion,Prediction
 2025-04-15 16:50:58,26.3,48,1,Anomaly
 2025-04-15 16:51:34,26.0,48,1,Anomaly
 2025-04-15 16:52:10,26.1,48,1,Anomaly
->>>>>>> fe2b6ed (Initial commit with all necessary files and scripts)
+
