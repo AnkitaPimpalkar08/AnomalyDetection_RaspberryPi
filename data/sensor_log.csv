@@ -1,5 +1,4 @@
 Timestamp,Temperature,Humidity,Motion
-<<<<<<< HEAD
 2025-03-24 05:34:33,24.5,31,1
 2025-03-24 05:34:35,24.3,31,1
 2025-03-24 05:34:37,24.3,32,1
@@ -2007,4 +2006,3 @@ Timestamp,Temperature,Humidity,Motion
 2025-04-15 19:07:55,26.3,43,1
 2025-04-15 19:07:57,,,1
 2025-04-15 19:07:59,26.3,43,1
->>>>>>> fe2b6ed (Initial commit with all necessary files and scripts)
