@@ -1,3 +1,4 @@
+# realtime_detector.py
 import time
 import board
 import adafruit_dht
@@ -53,10 +54,7 @@ try:
         motion = GPIO.input(PIR_PIN)
 
         try:
-<<<<<<< HEAD
-=======
             time.sleep(1)  # Small delay to ensure sensor stability
->>>>>>> fe2b6ed (Initial commit with all necessary files and scripts)
             temp = dht_sensor.temperature
             hum = dht_sensor.humidity
             if temp is None or hum is None:
@@ -67,7 +65,6 @@ try:
             continue
 
         # Update buffer
-<<<<<<< HEAD
         data_buffer.append([temp, hum, motion])
         if len(data_buffer) > ROLLING:
             data_buffer.pop(0)
@@ -97,50 +94,12 @@ try:
             # Log anomaly
             with open(ANOMALY_LOG, mode='a') as f:
                 f.write(f"{timestamp},{temp},{hum},{motion},{pred}\n")
-=======
-        data_buffer.append([timestamp, temp, hum, motion])
-
-        # Process data after buffer reaches the rolling window size
-        if len(data_buffer) >= ROLLING:
-            # Create a dataframe from the buffer
-            df = pd.DataFrame(data_buffer, columns=["Timestamp", "Temperature", "Humidity", "Motion"])
-            df.dropna(inplace=True)
-
-            # Apply rolling average
-            features = df[["Temperature", "Humidity", "Motion"]].rolling(ROLLING).mean().dropna()
-
-            # Standardize
-            scaled_features = scaler.transform(features)
-
-            # Model prediction
-            prediction = model.predict(scaled_features)
-
-            # Handle anomaly detection
-            for i, pred in enumerate(prediction):
-                if pred == -1:  # Anomaly detected
-                    anomaly_time = df.iloc[i]["Timestamp"]
-                    temp = df.iloc[i]["Temperature"]
-                    hum = df.iloc[i]["Humidity"]
-                    motion = df.iloc[i]["Motion"]
-                    with open(ANOMALY_LOG, mode='a') as f:
-                        f.write(f"{anomaly_time},{temp},{hum},{motion},Anomaly\n")
-                    print(f"[ALERT] Anomaly detected at {anomaly_time}")
-                else:
-                    print(f"{df.iloc[i]['Timestamp']} ✅ No anomaly detected.")
-
-            # Clear the buffer after processing
-            data_buffer = []
->>>>>>> fe2b6ed (Initial commit with all necessary files and scripts)
 
         time.sleep(INTERVAL)
 
 except KeyboardInterrupt:
-<<<<<<< HEAD
     print("\n🛑 Detection stopped by user.")
 
 finally:
     dht_sensor.exit()
-=======
-    print("\n🛑 Real-time anomaly detection stopped.")
->>>>>>> fe2b6ed (Initial commit with all necessary files and scripts)
     GPIO.cleanup()

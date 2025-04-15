@@ -1,59 +1,11 @@
 import streamlit as st
 import pandas as pd
-<<<<<<< HEAD
-=======
 import numpy as np
->>>>>>> fe2b6ed (Initial commit with all necessary files and scripts)
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import time
 import json
 import joblib
-<<<<<<< HEAD
-from sklearn.preprocessing import StandardScaler
-
-# Load config file
-with open("config.json") as f:
-    config = json.load(f)
-
-data_file = config["LOGGING"]["anomaly_log_file"]
-model_path = config["MODEL"]["model_path"]
-
-# Load trained model and scaler using joblib
-with open(model_path, 'rb') as f:
-    model_data = joblib.load(f)
-
-model = model_data["model"]
-scaler = model_data["scaler"]
-
-# Load data function
-def load_data():
-    df = pd.read_csv(data_file)
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'])
-    return df
-
-# Streamlit layout enhancements
-st.set_page_config(page_title="Real-Time Sensor Dashboard", layout="wide")
-st.markdown("<h1 style='text-align: center; color: #FF5733;'>📊 Real-Time Sensor Dashboard</h1>", unsafe_allow_html=True)
-
-# Sidebar Styling and Controls
-st.sidebar.title("Dashboard Controls")
-st.sidebar.markdown("Explore real-time sensor data and anomalies.")
-time_range = st.sidebar.slider("Select time range", 1, 24, 2, 1)  # hours
-anomaly_toggle = st.sidebar.checkbox("Show Anomalies", True)
-
-# Plot function with improved styling
-def plot_graph(df):
-    # Convert Timestamp to a more readable format: HH:MM (hours:minutes)
-    df['Time'] = df['Timestamp'].dt.strftime('%H:%M')  # This will show time in Hours:Minutes
-
-    # Scale the data for prediction
-    scaled_data = scaler.transform(df[['Temperature', 'Humidity', 'Motion']])
-
-    # Predict anomalies using the Isolation Forest model
-    df['is_anomaly'] = model.predict(scaled_data)
-
-=======
 from datetime import datetime, timedelta
 import os
 import matplotlib.pyplot as plt
@@ -142,35 +94,60 @@ def generate_sample_data():
     timestamps = [now - timedelta(minutes=i*5) for i in range(288)]
     timestamps.reverse()  # Make chronological
     
-    # Generate sample data with MORE pronounced randomness and patterns
-    temperature_base = 25
-    humidity_base = 50
-    
+    # Generate more realistic data
     data = {
         'Timestamp': timestamps,
-        'Temperature': [
-            temperature_base + 
-            4*np.sin(i/24) +  # Larger sine wave amplitude (4 instead of 2)
-            1.5*np.sin(i/8) +  # Add second higher frequency component
-            np.random.normal(0, 1.2)  # More random noise (1.2 instead of 0.5)
-            for i in range(288)
-        ],
-        'Humidity': [
-            humidity_base + 
-            10*np.sin(i/12) +  # Larger amplitude (10 instead of 5)
-            5*np.sin(i/6) +    # Add second higher frequency component 
-            np.random.normal(0, 3.5)  # More random noise (3.5 instead of 2)
-            for i in range(288)
-        ],
-        'Motion': [
-            # More varied pattern with clusters of motion
-            1 if (i % 40 < 15) or np.random.random() < 0.2 else 0
-            for i in range(288)
-        ]
+        'Temperature': [],
+        'Humidity': [],
+        'Motion': []
     }
     
+    # Generate more realistic patterns
+    for i, ts in enumerate(timestamps):
+        # Time of day effect (0-24 hour cycle)
+        hour = ts.hour + ts.minute/60
+        
+        # Temperature: daily cycle + small random variation
+        # Lowest at 4-5am, highest at 2-3pm
+        daily_cycle = 3 * np.sin((hour - 4) * np.pi / 12)
+        temp_base = 24 + daily_cycle
+        temp = temp_base + np.random.normal(0, 0.5)
+        
+        # Humidity: inverse to temperature + random variation
+        hum_base = 50 - daily_cycle * 3  # Inverse relationship with temp
+        hum = hum_base + np.random.normal(0, 2.0)
+        
+        # Motion: higher probability during day hours
+        motion_prob = 0.05  # Base probability
+        if 7 <= hour <= 22:  # Daytime
+            motion_prob = 0.15
+        if 17 <= hour <= 19:  # Evening peak
+            motion_prob = 0.4
+            
+        mot = 1 if np.random.random() < motion_prob else 0
+        
+        # Add occasional anomalies (about 3% of the time)
+        is_anomaly = i > 10 and np.random.random() < 0.03
+        
+        # If it's an anomaly, make the values more extreme
+        if is_anomaly:
+            # Create temperature or humidity anomaly
+            if np.random.random() < 0.5:
+                # Temperature anomaly
+                temp += np.random.choice([-2.5, 2.5]) + np.random.uniform(-0.5, 0.5)
+            else:
+                # Humidity anomaly
+                hum += np.random.choice([-10, 10]) + np.random.uniform(-2, 2)
+            
+            # Sometimes add motion during unusual hours
+            if 0 <= hour <= 5 and np.random.random() < 0.7:
+                mot = 1
+        
+        data['Temperature'].append(round(temp, 1))
+        data['Humidity'].append(round(hum, 1))
+        data['Motion'].append(mot)
+    
     return pd.DataFrame(data)
-
 # Cache config loading
 @st.cache_data(ttl=60)
 def load_config():
@@ -436,7 +413,6 @@ def create_dashboard_plots(df, anomaly_toggle=True, chart_type="Line", sensitivi
         df.loc[:, 'is_anomaly'] = 0
     
     # Create subplots
->>>>>>> fe2b6ed (Initial commit with all necessary files and scripts)
     fig = make_subplots(
         rows=3, cols=1,
         shared_xaxes=True,
@@ -447,39 +423,6 @@ def create_dashboard_plots(df, anomaly_toggle=True, chart_type="Line", sensitivi
         ),
         vertical_spacing=0.12
     )
-<<<<<<< HEAD
-
-    # Temperature Plot
-    fig.add_trace(go.Scatter(
-        x=df['Time'], y=df['Temperature'],
-        mode='lines+markers', name='Temperature',
-        line=dict(color='orange', width=2, dash='solid'),
-        marker=dict(size=8, color='orange', opacity=0.6)
-    ), row=1, col=1)
-
-    # Humidity Plot
-    fig.add_trace(go.Scatter(
-        x=df['Time'], y=df['Humidity'],
-        mode='lines+markers', name='Humidity',
-        line=dict(color='blue', width=2, dash='solid'),
-        marker=dict(size=8, color='blue', opacity=0.6)
-    ), row=2, col=1)
-
-    # Motion Plot
-    fig.add_trace(go.Scatter(
-        x=df['Time'], y=df['Motion'],
-        mode='lines+markers', name='Motion',
-        line=dict(color='green', width=2, dash='solid'),
-        marker=dict(size=8, color='green', opacity=0.6)
-    ), row=3, col=1)
-
-    # Highlight Anomalies if toggle is checked
-    if anomaly_toggle:
-        anomalies = df[df['is_anomaly'] == -1]  # Isolation Forest uses -1 for anomalies
-        fig.add_trace(go.Scatter(
-            x=anomalies['Time'], y=anomalies['Temperature'],
-            mode='markers', name='Anomalies',
-=======
     
     # Set trace mode based on chart type
     if chart_type == "Line":
@@ -582,48 +525,17 @@ def create_dashboard_plots(df, anomaly_toggle=True, chart_type="Line", sensitivi
         fig.add_trace(go.Scatter(
             x=anomalies['Time'], y=anomalies['Temperature'],
             mode='markers', name='Temperature Anomalies',
->>>>>>> fe2b6ed (Initial commit with all necessary files and scripts)
             marker=dict(size=12, color='red', symbol='x', opacity=0.9)
         ), row=1, col=1)
 
         fig.add_trace(go.Scatter(
             x=anomalies['Time'], y=anomalies['Humidity'],
-<<<<<<< HEAD
-            mode='markers', name='Anomalies',
-=======
             mode='markers', name='Humidity Anomalies',
->>>>>>> fe2b6ed (Initial commit with all necessary files and scripts)
             marker=dict(size=12, color='red', symbol='x', opacity=0.9)
         ), row=2, col=1)
 
         fig.add_trace(go.Scatter(
             x=anomalies['Time'], y=anomalies['Motion'],
-<<<<<<< HEAD
-            mode='markers', name='Anomalies',
-            marker=dict(size=12, color='red', symbol='x', opacity=0.9)
-        ), row=3, col=1)
-
-    # Update Layout
-    fig.update_layout(
-        height=800,
-        width=1000,
-        title="📊 Live Sensor Monitoring (Temperature, Humidity, Motion)",
-        xaxis_title="Time (HH:MM)",  # X-axis title updated
-        template="plotly_dark",  # Dark background for contrast
-        showlegend=True
-    )
-
-    # Pass a unique key to each chart to avoid duplicate element ID error
-    st.plotly_chart(fig, use_container_width=True, key=str(time.time()))  # Unique key using timestamp
-
-# Streamlit real-time loop
-st.markdown("### 📈 Live Data and Anomalies")
-while True:
-    df = load_data()
-    if not df.empty:
-        plot_graph(df)
-    time.sleep(config["LOGGING"]["interval_sec"])
-=======
             mode='markers', name='Motion Anomalies',
             marker=dict(size=12, color='red', symbol='x', opacity=0.9)
         ), row=3, col=1)
@@ -944,24 +856,3 @@ with st.expander("Graph Information", expanded=False):
     #### Anomaly Detection:
     Anomalies (shown as red X markers) are detected when the sensor readings deviate significantly from normal patterns as determined by the machine learning model.
     """)
-
-# Footer with auto-refresh indicator
-st.markdown("---")
-if auto_refresh:
-    st.markdown(f"*Auto-refreshing every {refresh_interval} seconds. Last updated: {datetime.now().strftime('%H:%M:%S')}*")
-    st.markdown("<div class='footer'>© 2025 Advanced Sensor Dashboard | Version 2.0</div>", unsafe_allow_html=True)
-
-# If auto refresh is enabled, add automatic page refreshing using JavaScript
-if auto_refresh:
-    refresh_js = f"""
-    <script>
-        var timer = setTimeout(function() {{
-            window.location.reload();
-        }}, {refresh_interval * 1000});
-        window.onbeforeunload = function() {{
-            clearTimeout(timer);
-        }}
-    </script>
-    """
-    st.components.v1.html(refresh_js, height=0)
->>>>>>> fe2b6ed (Initial commit with all necessary files and scripts)

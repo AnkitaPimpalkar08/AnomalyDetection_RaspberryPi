@@ -34,4 +34,3 @@ Timestamp,Temperature,Humidity,Motion,Prediction
 2025-04-15 16:50:58,26.3,48,1,Anomaly
 2025-04-15 16:51:34,26.0,48,1,Anomaly
 2025-04-15 16:52:10,26.1,48,1,Anomaly
-
