@@ -1,10 +1,11 @@
+#!/usr/bin/env python3
 # realtime_detector.py
+
 import time
 import board
 import adafruit_dht
 import RPi.GPIO as GPIO
 import pandas as pd
-import numpy as np
 import joblib
 import json
 from datetime import datetime
@@ -15,14 +16,14 @@ with open("config.json") as f:
     CONFIG = json.load(f)
 
 # Pins and paths from config
-DHT_PIN = CONFIG["GPIO"]["DHT_PIN"]
-PIR_PIN = CONFIG["GPIO"]["PIR_PIN"]
-BUZZER_PIN = CONFIG["GPIO"]["BUZZER_PIN"]
-LED_PIN = CONFIG["GPIO"]["LED_PIN"]
-MODEL_PATH = CONFIG["MODEL"]["model_path"]
-ANOMALY_LOG = CONFIG["LOGGING"]["anomaly_log_file"]
-INTERVAL = CONFIG["LOGGING"]["interval_sec"]
-ROLLING = CONFIG["MODEL"]["rolling_window"]
+DHT_PIN      = CONFIG["GPIO"]["DHT_PIN"]
+PIR_PIN      = CONFIG["GPIO"]["PIR_PIN"]
+BUZZER_PIN   = CONFIG["GPIO"]["BUZZER_PIN"]
+LED_PIN      = CONFIG["GPIO"]["LED_PIN"]
+MODEL_PATH   = CONFIG["MODEL"]["model_path"]
+ANOMALY_LOG  = CONFIG["LOGGING"]["anomaly_log_file"]
+INTERVAL     = CONFIG["LOGGING"]["interval_sec"]
+ROLLING      = CONFIG["MODEL"]["rolling_window"]
 
 # GPIO setup
 GPIO.setmode(GPIO.BCM)
@@ -31,20 +32,17 @@ GPIO.setup(BUZZER_PIN, GPIO.OUT)
 GPIO.setup(LED_PIN, GPIO.OUT)
 dht_sensor = adafruit_dht.DHT11(board.D4)
 
-# Load model and scaler
+# Load model + scaler from the single pickle
 model_data = joblib.load(MODEL_PATH)
-model = model_data["model"]
-scaler = model_data["scaler"]
+model       = model_data["model"]
+scaler      = model_data["scaler"]
 
-# Make sure log directory exists
+# Ensure anomaly log directory exists
 os.makedirs(os.path.dirname(ANOMALY_LOG), exist_ok=True)
-
-# Create anomaly CSV if not exists
 if not os.path.isfile(ANOMALY_LOG):
-    with open(ANOMALY_LOG, mode='w') as f:
+    with open(ANOMALY_LOG, 'w') as f:
         f.write("Timestamp,Temperature,Humidity,Motion,Prediction\n")
 
-# Live buffer
 data_buffer = []
 print("🔍 Starting real-time anomaly detection...\n")
 
@@ -53,10 +51,11 @@ try:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         motion = GPIO.input(PIR_PIN)
 
+        # Read DHT sensor (with a quick retry if needed)
         try:
-            time.sleep(1)  # Small delay to ensure sensor stability
+            time.sleep(1)
             temp = dht_sensor.temperature
-            hum = dht_sensor.humidity
+            hum  = dht_sensor.humidity
             if temp is None or hum is None:
                 raise ValueError("Invalid DHT reading")
         except Exception as e:
@@ -64,42 +63,55 @@ try:
             time.sleep(INTERVAL)
             continue
 
-        # Update buffer
-        data_buffer.append([temp, hum, motion])
-        if len(data_buffer) > ROLLING:
-            data_buffer.pop(0)
+        # Append to rolling buffer
+        data_buffer.append({'Temp': temp, 'Humidity': hum, 'Motion': motion})
 
+        # Wait until we have enough data
         if len(data_buffer) < ROLLING:
             print(f"[{timestamp}] ⏳ Waiting for enough data...")
+            time.sleep(INTERVAL)
+            continue
+
+        # Compute rolling means
+        df = pd.DataFrame(data_buffer[-ROLLING:])
+        avg_temp     = df['Temp'].mean()
+        avg_humidity = df['Humidity'].mean()
+        avg_motion   = df['Motion'].mean()
+
+        # Build a DataFrame for prediction
+        mean_row = pd.DataFrame([{
+            'Temp':      avg_temp,
+            'Humidity':  avg_humidity,
+            'Motion':    avg_motion
+        }])
+
+        # Rename Temp → Temperature to match training
+        mean_row = mean_row.rename(columns={'Temp': 'Temperature'})
+        # Reorder columns exactly as in training
+        mean_row = mean_row[['Temperature', 'Humidity', 'Motion']]
+
+        # Scale and predict
+        scaled_input = scaler.transform(mean_row)
+        pred = model.predict(scaled_input)[0]
+
+        # Act on the prediction
+        if pred == -1:
+            print(f"[{timestamp}] 🚨 Anomaly detected! Temp={avg_temp:.1f}°C Humidity={avg_humidity:.0f}% Motion={avg_motion}")
+            GPIO.output(LED_PIN, GPIO.HIGH)
+            GPIO.output(BUZZER_PIN, GPIO.HIGH)
+            time.sleep(0.5)
+            GPIO.output(BUZZER_PIN, GPIO.LOW)
         else:
-            df = pd.DataFrame(data_buffer, columns=["Temp", "Humidity", "Motion"])
-            mean_row = df.mean().to_frame().T  # DataFrame with column names
-            scaled_input = scaler.transform(mean_row)
-            pred = model.predict(scaled_input)[0]
-            status = "🚨 Anomaly" if pred == -1 else "✅ Normal"
+            print(f"[{timestamp}] ✅ Normal. Temp={avg_temp:.1f}°C Humidity={avg_humidity:.0f}% Motion={avg_motion}")
+            GPIO.output(LED_PIN, GPIO.LOW)
 
-            # Show result
-            print(f"[{timestamp}] Temp: {temp}°C | Humidity: {hum}% | Motion: {motion} → {status}")
-
-            # Trigger alerts
-            if pred == -1:
-                if CONFIG["ALERTS"]["use_buzzer"]:
-                    GPIO.output(BUZZER_PIN, GPIO.HIGH)
-                if CONFIG["ALERTS"]["use_led"]:
-                    GPIO.output(LED_PIN, GPIO.HIGH)
-            else:
-                GPIO.output(BUZZER_PIN, GPIO.LOW)
-                GPIO.output(LED_PIN, GPIO.LOW)
-
-            # Log anomaly
-            with open(ANOMALY_LOG, mode='a') as f:
-                f.write(f"{timestamp},{temp},{hum},{motion},{pred}\n")
+        # Log to CSV
+        with open(ANOMALY_LOG, 'a') as f:
+            f.write(f"{timestamp},{avg_temp:.1f},{avg_humidity:.0f},{avg_motion},{int(pred)}\n")
 
         time.sleep(INTERVAL)
 
 except KeyboardInterrupt:
-    print("\n🛑 Detection stopped by user.")
-
+    print("🛑 Stopped by user.")
 finally:
-    dht_sensor.exit()
     GPIO.cleanup()
