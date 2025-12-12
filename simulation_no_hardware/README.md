@@ -1,6 +1,5 @@
 # Trustworthy Behavioral Anomaly Detection (No Hardware)
 
-This is a SOP-aligned anomaly detection project:
 - Synthetic "home sensor" streams (temp/humidity/motion proxy)
 - Windowed feature engineering + Isolation Forest
 - Alerts filtered using temporal persistence (real anomalies persist; spikes don't)
